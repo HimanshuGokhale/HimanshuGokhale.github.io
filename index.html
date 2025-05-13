@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Manager</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+		body {
+		  font-family: 'Segoe UI', sans-serif;
+		  margin: 0;
+		  padding: 20px;
+		  background: #f7f7f7;
+		  transition: background 0.3s, color 0.3s;
+		}
+		.container {
+		  max-width: 800px;
+		  margin: auto;
+		  background: #fff;
+		  padding: 20px;
+		  border-radius: 12px;
+		  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+		}
+		h2 {
+		  text-align: center;
+		  color: #333;
+		  display: flex;
+		  justify-content: center;
+		  align-items: center;
+		  gap: 10px;
+		}
+		h2 i {
+		  cursor: pointer;
+		  color: #007bff;
+		}
+
+		form {
+		  display: flex;
+		  flex-wrap: wrap;
+		  gap: 10px;
+		  justify-content: space-between;
+		  margin-bottom: 20px;
+		}
+		form input, form select {
+		  flex: 1 1 30%;
+		  padding: 10px;
+		  border: 1px solid #ccc;
+		  border-radius: 8px;
+		}
+		form button {
+		  flex: 1 1 100%;
+		  padding: 10px;
+		  border: none;
+		  background-color: #28a745;
+		  color: white;
+		  border-radius: 8px;
+		  cursor: pointer;
+		  font-weight: bold;
+		}
+		form button:hover {
+		  background-color: #218838;
+		}
+
+		.filter {
+		  display: flex;
+		  justify-content: space-between;
+		  align-items: center;
+		  flex-wrap: wrap;
+		  margin-bottom: 15px;
+		}
+		.filter input[type="month"] {
+		  padding: 6px 10px;
+		  border-radius: 8px;
+		  border: 1px solid #ccc;
+		}
+
+		table {
+		  width: 100%;
+		  border-collapse: collapse;
+		  background-color: #fff;
+		}
+		th, td {
+		  padding: 10px 8px;
+		  text-align: left;
+		  border-bottom: 1px solid #eee;
+		}
+		th {
+		  background-color: #f0f0f0;
+		}
+		.delete-btn {
+		  background-color: transparent;
+		  border: none;
+		  color: #dc3545;
+		  font-size: 16px;
+		  cursor: pointer;
+		  border-radius: 50%;
+		  padding: 4px;
+		  width: 30px;
+		  height: 30px;
+		}
+		.actions-col {
+		  width: 50px;
+		  text-align: center;
+		}
+
+		.chart-modal {
+		  display: none;
+		  position: fixed;
+		  top: 0; left: 0;
+		  width: 100%; height: 100%;
+		  background-color: rgba(0, 0, 0, 0.6);
+		  justify-content: center;
+		  align-items: center;
+		  z-index: 9999;
+		}
+		.chart-content {
+		  background: #fff;
+		  color: #000;
+		  padding: 20px;
+		  border-radius: 10px;
+		  max-width: 500px;
+		  width: 90%;
+		  margin: auto;
+		  text-align: center;
+		}
+		.chart-content canvas {
+		  max-width: 100%;
+		  height: auto;
+		}
+		.close-chart {
+		  float: right;
+		  cursor: pointer;
+		  font-size: 20px;
+		  color: red;
+		}
+
+		@media (max-width: 600px) {
+		  form input, form select, form button {
+			flex: 1 1 100%;
+		  }
+		  .filter {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 10px;
+		  }
+		}
+
+		/* Themes */
+		body.light-theme {
+		  background: #ffffff;
+		  color: #000000;
+		}
+		body.light-theme .chart-content {
+		  background: #ffffff;
+		  color: #000000;
+		}
+
+		body.dark-theme {
+		  background: #1e1e1e;
+		  color: #ffffff;
+		}
+		body.dark-theme .chart-content {
+		  background: #2a2a2a;
+		  color: #ffffff;
+		}
+		body.dark-theme table,
+			body.dark-theme th,
+			body.dark-theme td {
+			  color: #000000;
+		}
+		body.blue-theme {
+		  background: #e0f0ff;
+		  color: #003366;
+		}
+		body.blue-theme .chart-content {
+		  background: #cce6ff;
+		  color: #003366;
+		}
+
+		/* Theme Modal Buttons */
+		.theme-options {
+		  display: flex;
+		  gap: 10px;
+		  justify-content: center;
+		  margin-top: 20px;
+		}
+		.theme-btn {
+		  padding: 10px 20px;
+		  border: none;
+		  cursor: pointer;
+		  font-weight: bold;
+		  border-radius: 6px;
+		  transition: transform 0.2s ease;
+		}
+		.theme-btn:hover {
+		  transform: scale(1.05);
+		}
+		
+  </style>
+</head>
+<body>
+  <div class="container">
+   <h2 style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+	  <i class="fas fa-palette" id="openThemeModal" style="cursor: pointer;" title="Change Theme"></i>
+	  <span>Expense Manager</span>
+	  <i class="fas fa-chart-pie" id="openChart" style="cursor: pointer;" title="Open Chart"></i>
+	</h2>
+
+    <form id="expense-form">
+      <select id="category">
+        <option value="" disabled selected>Select Category</option>
+        <option value="Food">Food</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Transportation">Transportation</option>
+        <option value="Shopping">Shopping</option>
+        <option value="Utilities">Utilities</option>
+      </select>
+      <input type="text" id="newCategory" placeholder="Add New Category (optional)">
+      <input type="number" id="amount" placeholder="Amount" required>
+      <input type="text" id="note" placeholder="Note (optional)">
+      <input type="date" id="date" required>
+      <div style="display: flex; gap: 10px; width: 100%;">
+		  <button type="submit" id="save">Add Expense</button>
+		  <button type="button" id="clearBtn" style="background-color: #6c757d;">Clear</button>
+	  </div>
+
+    </form>
+
+    <div class="filter">
+      <label>
+        Filter by Month:
+        <input type="month" id="monthFilter">
+      </label>
+	  <input type="file" id="uploadCSV" accept=".csv">
+      <button id="downloadCSVBtn">Download CSV</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th class="actions-col">&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody id="expense-table-body"></tbody>
+      <tfoot>
+        <tr>
+          <th colspan="2">Total</th>
+          <th id="totalAmount">0</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Chart Modal -->
+  <div class="chart-modal" id="chartModal">
+    <div class="chart-content">
+      <span class="close-chart" id="closeChart">&times;</span>
+      <h3>Expense Chart</h3>
+      <label>Filter by Month:
+        <input type="month" id="chartMonthFilter">
+      </label>
+      <canvas id="expenseChart"></canvas>
+    </div>
+  </div>
+
+	<!-- Drilldown Chart Modal -->
+	<div class="chart-modal" id="drilldownModal">
+	  <div class="chart-content">
+		<span class="close-chart" id="closeDrilldownChart">&times;</span>
+		<h3 id="drilldownTitle">Category Details</h3>
+		<canvas id="drilldownChart"></canvas>
+	  </div>
+	</div>
+	
+	<!-- Note Detail Chart Modal -->
+	<div class="chart-modal" id="noteDetailModal">
+	  <div class="chart-content">
+		<span class="close-chart" id="closeNoteDetailChart">&times;</span>
+		<h3 id="noteDetailTitle">Note Details</h3>
+		<canvas id="noteDetailChart"></canvas>
+	  </div>
+	</div>
+	
+	<!-- Theme Modal -->
+	<div class="chart-modal" id="themeModal">
+	  <div class="chart-content">
+		<span class="close-chart" id="closeThemeModal">&times;</span>
+		<h3>Select Theme</h3>
+		<div class="theme-options">
+		  <button class="theme-btn" data-theme="light" style="background:#ffffff; color:#000;">Light</button>
+		  <button class="theme-btn" data-theme="dark" style="background:#1e1e1e; color:#fff;">Dark</button>
+		  <button class="theme-btn" data-theme="blue" style="background:#007BFF; color:#fff;">Blue</button>
+		</div>
+	  </div>
+	</div>
+
+  <script>
+    const $form = $('#expense-form');
+    const $category = $('#category');
+    const $newCategory = $('#newCategory');
+    const $amount = $('#amount');
+    const $note = $('#note');
+    const $date = $('#date');
+    const $monthFilter = $('#monthFilter');
+    const $tableBody = $('#expense-table-body');
+    const $totalAmount = $('#totalAmount');
+    const $openChart = $('#openChart');
+    const $chartModal = $('#chartModal');
+    const $closeChart = $('#closeChart');
+    const $chartMonthFilter = $('#chartMonthFilter');
+	const $drilldownModal = $('#drilldownModal');
+	const $closeDrilldownChart = $('#closeDrilldownChart');
+	const $drilldownTitle = $('#drilldownTitle');
+	
+	let drilldownChartInstance = null;
+    let chartInstance = null;
+	let noteDetailChartInstance = null;
+	let editIndex = -1;
+	
+    let expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    let categories = JSON.parse(localStorage.getItem('categories') || '[]');
+    const today = new Date();
+    const monthStr = today.toISOString().slice(0, 7);
+    $monthFilter.val(monthStr);
+    $chartMonthFilter.val(monthStr);
+    $date.val(today.toISOString().slice(0, 10));
+
+    function save() {
+      localStorage.setItem('expenses', JSON.stringify(expenses));
+      localStorage.setItem('categories', JSON.stringify(categories));
+    }
+
+    function formatDate(dateStr) {
+      const [y, m, d] = dateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    function loadCategories() {
+      categories.forEach(cat => {
+        if (!$category.find(`option[value="${cat}"]`).length) {
+          $category.append(`<option value="${cat}">${cat}</option>`);
+        }
+      });
+    }
+
+    function loadExpenses() {
+      const selectedMonth = $monthFilter.val();
+      $tableBody.empty();
+      let total = 0;
+
+      expenses.filter(e => e.date.startsWith(selectedMonth)).forEach((e, i) => {
+        total += e.amount;
+        $tableBody.append(`
+		  <tr data-index="${i}" class="clickable-row">
+			<td>${formatDate(e.date)}</td>
+			<td>${e.category}</td>
+			<td title="${e.note}">${e.amount}</td>
+			<td>
+			  <button class="delete-btn" data-index="${i}"><i class="fas fa-trash-alt"></i></button>
+			</td>
+		  </tr>
+		`);
+      });
+      $totalAmount.text(total);
+    }
+
+    $form.on('submit', function(e) {
+      e.preventDefault();
+      const cat = $newCategory.val().trim() || $category.val();
+      const amt = parseFloat($amount.val());
+      const note = $note.val();
+      const date = $date.val();
+
+      if (!cat || !amt || !date) return alert('Fill all required fields');
+
+      if ($newCategory.val().trim() && !categories.includes(cat)) {
+        categories.push(cat);
+        $category.append(`<option value="${cat}">${cat}</option>`);
+      }
+	  
+	  if (editIndex !== -1) {
+		  expenses[editIndex] = { category: cat, amount: amt, note, date };
+		  editIndex = -1; 
+		} else {
+		  expenses.push({ category: cat, amount: amt, note, date });
+		}
+      
+      save();
+      loadExpenses();
+      $form[0].reset();
+	  $('#amount, #category, #note, #date').val('');
+	  editIndex = -1;
+      $date.val(today.toISOString().slice(0, 10));
+    });
+	
+	$('#clearBtn').on('click', function() {
+	  $form[0].reset();
+	  $('#amount, #category, #note, #date').val('');
+	  $form.find('button[type="submit"]').text('Add Expense');
+	  $date.val(today.toISOString().slice(0, 10));
+	  editIndex = -1;
+	});
+
+
+    $tableBody.on('click', '.delete-btn', function() {
+      const index = $(this).data('index');
+      expenses.splice(index, 1);
+      save();
+      loadExpenses();
+    });
+	
+	$tableBody.on('click', '.clickable-row', function (e) {
+	  // Ignore clicks on the delete button
+	  if ($(e.target).closest('.delete-btn').length) return;
+
+	  const index = $(this).data('index');
+	  const expense = expenses[index];
+	  editIndex = index;
+
+	  // These must match your input field names and selectors exactly
+	  $category.val(expense.category);
+	  $amount.val(expense.amount);
+	  $note.val(expense.note);
+	  $date.val(expense.date);
+
+	  $form.find('#save').text('Update Expense');
+	});
+
+
+    $monthFilter.on('change', loadExpenses);
+
+    $('#downloadCSVBtn').on('click', function () {
+      const selectedMonth = $monthFilter.val();
+      const data = expenses.filter(e => e.date.startsWith(selectedMonth));
+      let csv = "Date,Category,Amount,Note\n";
+      data.forEach(e => {
+        csv += `${formatDate(e.date)},${e.category},${e.amount},${e.note}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `expenses-${selectedMonth}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    $openChart.on('click', () => {
+      drawChart();
+      $chartModal.show();
+    });
+
+    $closeChart.on('click', () => $chartModal.hide());
+    $chartMonthFilter.on('change', drawChart);
+
+    function getRandomColor() {
+	  const hue = Math.floor(Math.random() * 360);
+	  const pastel = `hsl(${hue}, 70%, 80%)`; // pastel tone using HSL
+	  return pastel;
+	}
+
+    function drawChart() {
+      const ctx = document.getElementById('expenseChart').getContext('2d');
+      const month = $chartMonthFilter.val();
+      const filtered = expenses.filter(e => e.date.startsWith(month));
+      const grouped = {};
+      filtered.forEach(e => grouped[e.category] = (grouped[e.category] || 0) + e.amount);
+
+      const labels = Object.keys(grouped);
+      const data = Object.values(grouped);
+      const backgroundColors = labels.map(() => getRandomColor());
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+		  type: 'pie',
+		  data: {
+			labels,
+			datasets: [{
+			  label: 'Expenses by Category',
+			  data,
+			  backgroundColor: backgroundColors
+			}]
+		  },
+		  options: {
+			responsive: true,
+			plugins: {
+			  legend: { position: 'top' },
+			  title: { display: true, text: `Expenses - ${month}` }
+			},
+			onClick: (e, elements) => {
+			  if (elements.length > 0) {
+				const index = elements[0].index;
+				const category = labels[index];
+				showDrilldownChart(category, month);
+			  }
+			}
+		  }
+		});
+    }
+	
+	function showDrilldownChart(category, month) {
+	  const ctx = document.getElementById('drilldownChart').getContext('2d');
+	  const filtered = expenses.filter(e => e.date.startsWith(month) && e.category === category);
+
+	  // ✅ Group by note and sum the amounts
+	  const noteMap = {};
+	  filtered.forEach(e => {
+		const note = e.note || 'No Note';
+		if (!noteMap[note]) {
+		  noteMap[note] = 0;
+		}
+		noteMap[note] += e.amount;
+	  });
+
+	  const labels = Object.keys(noteMap);
+	  const data = Object.values(noteMap);
+	  const backgroundColors = labels.map(() => getRandomColor());
+
+	  if (drilldownChartInstance) {
+		drilldownChartInstance.destroy();
+	  }
+
+	  drilldownChartInstance = new Chart(ctx, {
+		type: 'bar',
+		data: {
+		  labels,
+		  datasets: [{
+			label: `Expenses in ${category}`,
+			data,
+			backgroundColor: backgroundColors
+		  }]
+		},
+		options: {
+		  responsive: true,
+		  plugins: {
+			legend: { display: false },
+			title: {
+			  display: true,
+			  text: `Breakdown of ${category} - ${month}`
+			}
+		  },
+		  onClick: (e, elements) => {
+			  if (elements.length > 0) {
+				const index = elements[0].index;
+				const note = labels[index];
+				showNoteDetailChart(category, note, month);
+			  }
+			},
+		  scales: {
+			x: {
+			  ticks: {
+				callback: function(value) {
+				  const label = this.getLabelForValue(value);
+				  return label.length > 20 ? label.slice(0, 20) + '...' : label;
+				}
+			  }
+			},
+			y: {
+			  beginAtZero: true
+			}
+		  }
+		}
+	  });
+
+	  $drilldownTitle.text(`Details for "${category}"`);
+	  $drilldownModal.show();
+	}	
+
+	function showNoteDetailChart(category, note, month) {
+	  const ctx = document.getElementById('noteDetailChart').getContext('2d');
+
+	  const filtered = expenses.filter(e =>
+		e.date.startsWith(month) &&
+		e.category === category &&
+		(e.note || 'No Note') === note
+	  );
+
+	  const dateMap = {};
+	  filtered.forEach(e => {
+		const date = formatDate(e.date);
+		dateMap[date] = (dateMap[date] || 0) + e.amount;
+	  });
+
+	  const labels = Object.keys(dateMap);
+	  const data = Object.values(dateMap);
+	  const backgroundColors = labels.map(() => getRandomColor());
+
+	  if (noteDetailChartInstance) {
+		noteDetailChartInstance.destroy();
+	  }
+
+	  noteDetailChartInstance = new Chart(ctx, {
+		type: 'bar',
+		data: {
+		  labels,
+		  datasets: [{
+			label: `Spending on "${note}"`,
+			data,
+			backgroundColor: backgroundColors
+		  }]
+		},
+		options: {
+		  responsive: true,
+		  plugins: {
+			legend: { display: false },
+			title: {
+			  display: true,
+			  text: `Date-wise Spending on "${note}" in ${category}`
+			}
+		  },
+		  scales: {
+			x: { title: { display: true, text: 'Date' }},
+			y: { beginAtZero: true, title: { display: true, text: 'Amount' }}
+		  }
+		}
+	  });
+
+	  $noteDetailTitle.text(`Spending on "${note}" in ${category}`);
+	  $noteDetailModal.show();
+	}
+
+	const $noteDetailModal = $('#noteDetailModal');
+	const $noteDetailTitle = $('#noteDetailTitle');
+
+	$('#closeNoteDetailChart').click(() => $noteDetailModal.hide());
+	$closeDrilldownChart.on('click', () => $drilldownModal.hide());
+	
+    loadCategories();
+    loadExpenses();
+	
+	const $uploadCSV = $('#uploadCSV');
+	
+	  //let expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+	  //let categories = JSON.parse(localStorage.getItem('categories') || '[]');
+
+	  function saveExpenses() {
+		localStorage.setItem('expenses', JSON.stringify(expenses));
+	  }
+
+	  function saveCategories() {
+		localStorage.setItem('categories', JSON.stringify(categories));
+	  }
+
+	  $uploadCSV.on('change', function(e) {
+		const file = e.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = function(e) {
+		  const lines = e.target.result.split('\n');
+		  lines.forEach(line => {
+			const [dateStr, category, amountStr, note] = line.split(',').map(v => v.replace(/"/g, '').trim());
+			if (dateStr && category && amountStr) {
+			  const parts = dateStr.split('/');
+			  if (parts.length !== 3) return;
+			  const date = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+			  const amount = parseFloat(amountStr);
+			  if (!isNaN(amount)) {
+				if (!categories.includes(category)) {
+				  categories.push(category);
+				}
+				expenses.push({ date, category, amount, note });
+			  }
+			}
+		  });
+			saveExpenses();
+			saveCategories();
+			loadCategories();
+			loadExpenses(); // <-- this reloads the table
+			$uploadCSV.val('');
+		};
+		reader.readAsText(file);
+	  });
+	  
+	const $themeModal = $('#themeModal');
+	const $openThemeModal = $('#openThemeModal');
+	const $closeThemeModal = $('#closeThemeModal');
+
+	$openThemeModal.click(() => $themeModal.show());
+	$closeThemeModal.click(() => $themeModal.hide());
+
+	// Apply theme
+	function applyTheme(theme) {
+	  $('body')
+		.removeClass('light-theme dark-theme blue-theme')
+		.addClass(`${theme}-theme`);
+	  localStorage.setItem('selectedTheme', theme);
+	}
+
+	// On page load
+	$(document).ready(() => {
+	  const savedTheme = localStorage.getItem('selectedTheme') || 'light';
+	  applyTheme(savedTheme);
+	});
+
+	// On theme button click
+	$('.theme-btn').click(function () {
+	  const selectedTheme = $(this).data('theme');
+	  applyTheme(selectedTheme);
+	  $themeModal.hide();
+	});
+
+  </script>
+</body>
+</html>
